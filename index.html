@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>無任何引入庫純原生webgl_2025電腦圖學專案_m11452022
+</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="favicon.svg">
+<style>
+  :root{ --bg:#0b0f14; --panel:#0e141b; --line:#1b2530; --txt:#e6edf3; --muted:#9fb1c1; }
+  html,body{ height:100%; margin:0; background:var(--bg); color:var(--txt); font-family:system-ui,-apple-system,Segoe UI,Roboto,Noto Sans TC,sans-serif; }
+  main{ display:grid; grid-template-columns: 340px 1fr; height:100%; }
+  aside{ background:var(--panel); border-right:1px solid var(--line); overflow:auto; padding:12px; }
+  h1{ font-size:16px; margin:0 0 8px; }
+  h2{ font-size:14px; margin:14px 0 6px; color:var(--muted); }
+  label{ display:block; font-size:12px; margin:6px 0 2px; color:var(--muted); }
+  input[type="file"]{ width:100%; }
+  select, input[type="number"], input[type="text"], input[type="range"], input[type="checkbox"]{ width:100%; padding:6px 8px; border-radius:8px; border:1px solid var(--line); background:#0a1117; color:var(--txt); }
+  .row{ display:flex; gap:8px; }
+  .row > *{ flex:1; }
+  ul{ list-style:none; padding-left:0; margin:0; border:1px solid var(--line); border-radius:8px; overflow:auto; max-height:140px; }
+  li{ padding:6px 8px; border-bottom:1px solid var(--line); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  li:last-child{ border-bottom:none; }
+  canvas{ width:100%; height:100%; display:block; }
+  .kv{ display:grid; grid-template-columns: 80px 1fr; gap:6px 10px; font-size:12px; }
+  .small{ font-size:12px; color:var(--muted); }
+  .light-col{ display:flex; flex-direction:column; gap:6px; }
+  .light-col .row{ gap:6px; }
+  .pill{ display:flex; align-items:center; gap:8px; padding:8px; border:1px solid var(--line); border-radius:10px; }
+  .hint{ font-size:12px; color:var(--muted); margin-top:4px; }
+</style>
+</head>
+<body>
+<main>
+  <aside>
+    <h1>載入</h1>
+    <h2>GLB</h2>
+    <label>選擇 .glb 後自動載入</label>
+    <input id="file_glb" type="file" accept=".glb" />
+
+    <h2>OBJ / MTL / 貼圖</h2>
+    <div class="hint">分開載入（OBJ →  MTL → 多張貼圖）</div>
+<div class="row">
+  <input id="file_obj" type="file" accept=".obj" />
+  <input id="file_mtl" type="file" accept=".mtl" />
+</div>
+<input id="files_tex" type="file" multiple accept=".jpg,.jpeg,.png,.bmp,.tga" />
+
+    <h2>Track (.txt/.xyz)</h2>
+    <input id="btn_load_path" type="file" accept=".txt,.xyz" />
+    <h2>火車動畫</h2>
+    <div class="kv">
+      <span>Train1</span><span>前進軸</span><select id="t1_forward"></select><span>上軸</span><select id="t1_up"></select>
+      <select id="train1_name"></select>
+      <span>Train2</span><span>前進軸</span><select id="t2_forward"></select><span>上軸</span><select id="t2_up"></select>
+      <select id="train2_name"></select>
+      <span>速度 (m/s)</span>
+      <input id="train_speed" type="number" step="0.1" value="5.0" />
+      <span>車道寬</span>
+      <input id="lane_width" type="number" step="0.1" value="2.0" />
+      <span>離地高度</span>
+      <input id="lane_height" type="number" step="0.1" value="0.2" />
+      <span>兩車距離</span>
+      <input id="car_spacing" type="number" step="0.1" value="0" />
+      <span>車道</span>
+      <div>
+        <label><input id="lane_left" type="radio" name="lane_side" /> 左</label>
+        <label><input id="lane_right" type="radio" name="lane_side" checked /> 右</label>
+      </div>
+      <span>全域修正四元數 w,x,y,z</span><input id="world_fix_q" value="1,1,0,0" /><span>控制</span>
+      <button id="btn_train_toggle">暫停</button>
+    </div>
+    
+
+    <h2>顯示</h2>
+    <div class="row">
+      <select id="sel_mode">
+        <option value="mixed">Mixed</option>
+        <option value="solid">Solid</option>
+        <option value="wire">Wire</option>
+      </select>
+      <label class="pill"><input id="chk_double" type="checkbox" checked /> 雙面</label>
+    </div>
+    <div class="row">
+      <label class="pill"><input id="chk_grid" type="checkbox" checked /> Grid</label>
+      <label class="pill"><input id="chk_axes" type="checkbox" checked /> Axes</label>
+    </div>
+    <label>飛行速度</label>
+    <input id="rng_speed" type="range" min="0.2" max="10" step="0.1" value="2.0" />
+
+    <h2>物件清單（雙擊導覽 / Alt+左鍵旋轉）</h2>
+    <ul id="lst_objs"></ul>
+    <label>選取物件</label>
+    <select id="sel_obj_name"></select>
+    <div class="row">
+      <button id="btn_toggle_vis">顯示/隱藏</button>
+      <button id="btn_delete_obj" style="background:#7a1f2e">刪除(軟刪除)</button>
+    </div>
+
+    <h2>四元數</h2>
+    <div class="row">
+      <input id="qw" type="number" step="0.001" value="1" placeholder="w" />
+      <input id="qx" type="number" step="0.001" value="0" placeholder="x" />
+    </div>
+    <div class="row">
+      <input id="qy" type="number" step="0.001" value="0" placeholder="y" />
+      <input id="qz" type="number" step="0.001" value="0" placeholder="z" />
+    </div>
+    <button id="btn_apply_q">套用到選取</button>
+
+    <h2>縮放（Scale）</h2>
+    <div class="row">
+      <input id="scale_x" type="number" step="0.01" value="1" placeholder="sx" />
+      <input id="scale_y" type="number" step="0.01" value="1" placeholder="sy" />
+    </div>
+    <div class="row">
+      <input id="scale_z" type="number" step="0.01" value="1" placeholder="sz" />
+    </div>
+    <div class="row">
+      <button id="btn_read_scale">讀取</button>
+      <button id="btn_apply_scale">套用</button>
+      <button id="btn_reset_scale">重設(1,1,1)</button>
+    </div>
+
+    <h2>旋轉矩陣（Rotation Matrix 3×3）</h2>
+    <div class="row" style="gap:6px; flex-wrap:wrap;">
+      <input id="rot_m00" type="number" step="0.001" value="1" placeholder="m00" style="width:70px" />
+      <input id="rot_m01" type="number" step="0.001" value="0" placeholder="m01" style="width:70px" />
+      <input id="rot_m02" type="number" step="0.001" value="0" placeholder="m02" style="width:70px" />
+      <input id="rot_m10" type="number" step="0.001" value="0" placeholder="m10" style="width:70px" />
+      <input id="rot_m11" type="number" step="0.001" value="1" placeholder="m11" style="width:70px" />
+      <input id="rot_m12" type="number" step="0.001" value="0" placeholder="m12" style="width:70px" />
+      <input id="rot_m20" type="number" step="0.001" value="0" placeholder="m20" style="width:70px" />
+      <input id="rot_m21" type="number" step="0.001" value="0" placeholder="m21" style="width:70px" />
+      <input id="rot_m22" type="number" step="0.001" value="1" placeholder="m22" style="width:70px" />
+    </div>
+    <div class="row">
+      <button id="btn_read_rotm">讀取</button>
+      <button id="btn_apply_rotm">套用</button>
+      <button id="btn_reset_rotm">重設(I)</button>
+    </div>
+
+    <h2>光源（上→下排列）</h2>
+    <div class="light-col">
+      <div class="row">
+        <span class="small" style="width:64px">Azimuth</span>
+        <input id="light_az" type="range" min="0" max="360" value="45" />
+      </div>
+      <div class="row">
+        <span class="small" style="width:64px">Elevation</span>
+        <input id="light_el" type="range" min="-5" max="85" value="35" />
+      </div>
+      <div class="row">
+        <span class="small" style="width:64px">Intensity</span>
+        <input id="light_i" type="range" min="0" max="2" step="0.01" value="1.0" />
+      </div>
+      <div class="row">
+        <span class="small" style="width:64px">Ambient</span>
+        <input id="light_a" type="range" min="0" max="0.5" step="0.005" value="0.08" />
+      </div>
+    </div>
+
+    <h2>相機</h2>
+    <div class="kv">
+      <div class="small">Eye</div><div id="cam_pos">-</div>
+      <div class="small">Target</div><div id="cam_ctr">-</div>
+    </div>
+
+  </aside>
+  <section>
+    <canvas id="glcanvas"></canvas>
+  </section>
+</main>
+
+<script type="module" src="./core.js"></script>
+<script type="module" src="./core_patch_append.js"></script>
+<script type="module" src="./main_glb.js"></script>
+<script type="module" src="./main_obj.js"></script>
+<script type="module" src="./main_path.js"></script>
+<script type="module" src="./ui_transform.js"></script>
+<script type="module" src="./main_train.js"></script>
+</body>
+</html>
